@@ -98,7 +98,9 @@ class GP_DNN_likelihood(tf.keras.metrics.Metric):
         y_cov=x_tilde_pred_pred_cov-tf.linalg.matmul(
                                                     tf.linalg.matmul(x_tilde_pred_cov,x_tilde_train_cov_inv),
                                                     x_tilde_pred_cov,transpose_b=True)
-        y_cov=y_cov+tf.eye(tf.shape(y_cov)[0],dtype=tf.float64)*1e-6
+        # For numerical stability
+        epsln = 1e-6
+        y_cov=y_cov+tf.eye(tf.shape(y_cov)[0],dtype=tf.float64)*epsln
 
         try:
             self.krig_likelihood=-tfp.distributions.MultivariateNormalTriL(
