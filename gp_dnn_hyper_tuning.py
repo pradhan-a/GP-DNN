@@ -31,9 +31,9 @@ np.random.seed(101)
         #     'x_test': <<n_test*n_coef \times n_features array>>
         #     'y_test': <<n_test*n_coef \times 2 array>>
         # }
-head_dir='./Tests/'
-data_dir='./Data/'
-training_file_name = 'training_data_SJV_float64_Jan23.pickle'
+head_dir='./' #<Enter path to directory to save trained models here>
+data_dir='./Data/' #<Enter path to data directory >
+training_file_name = 'training_data.pickle' #<Enter training data pickle file here>
 with open(data_dir+training_file_name, 'rb') as file_pi:
     training_data=pickle.load(file_pi)
 ###############################
