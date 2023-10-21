@@ -6,7 +6,7 @@ import json
 import pickle
 import time
 import random
-from utils_dnn import *
+from utils_gp_dnn import *
 
 
 def gp_dnn_training(training_data, epochs, model_output_path, hyper_params):

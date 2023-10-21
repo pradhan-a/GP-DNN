@@ -7,7 +7,7 @@ import scipy.stats as st
 import tensorflow as tf
 import pickle
 
-from utils_dnn import *
+from utils_gp_dnn import *
 from gp_dnn_training import *
 
 tf.keras.backend.set_floatx("float64")
