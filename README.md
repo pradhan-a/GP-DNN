@@ -25,3 +25,5 @@ The package contains the following:
   - `GP_DNN_likelihood`: TF subclass for GP-DNN likelihood metric
   - `GP_DNN_RMSE`: TF subclass for GP-DNN mean RMSE metric
   - `cokriging_covariance`: Function for constructing covariance matrix using Matérn kernels
+
+Users may choose the best model from hyper-parameter tuning based on saved metrics and perform subsequent analyses
