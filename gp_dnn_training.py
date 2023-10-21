@@ -1,13 +1,32 @@
+import numpy as np
+import os
+import tensorflow as tf
+import shutil
+import json
+import pickle
+import time
+import random
+from utils_dnn import *
+
 def gp_dnn_training(training_data, epochs, model_output_path, hyper_params):
-    import numpy as np
-    import os
-    import tensorflow as tf
-    import tensorflow_probability as tfp
-    import shutil
-    import json
-    import pickle
-    import time
-    import random
+    # Function for training GP-DNN 
+        # training_data = {
+        #     'x_train': <<n_train*n_coef \times n_features array>>
+        #     'y_train': <<n_train*n_coef \times 2 array>>
+        #                 2nd column indicates the index of coeffient/variable, 
+        #                 this is needed to determine which coeffient the 
+        #                 training example is for. Index \in [0, num_coef-1].
+        #     'x_val': <<n_val*n_coef \times n_features array>>
+        #     'y_val': <<n_val*n_coef \times 2 array>>
+        #     'x_test': <<n_test*n_coef \times n_features array>>
+        #     'y_test': <<n_test*n_coef \times 2 array>>
+        # }
+        # epochs: integer for the number of training epochs
+        # model_output_path: string for directory to save model outputs in
+        # hyper_params: dict containing hyper-parameters, see below for complete list
+    #
+    # Saves trained model files in model_output_path
+    ##################################
 
     ############# Read training data
     x_train=training_data['x_train']
@@ -25,22 +44,22 @@ def gp_dnn_training(training_data, epochs, model_output_path, hyper_params):
     ############# Read hyper_paramerters
     random_seed = hyper_params['random_seed']
     num_layers = hyper_params['num_layers']
-    num_nodes = hyper_params['num_nodes_samp']
+    num_nodes = hyper_params['num_nodes']
     num_outputs = hyper_params['num_outputs']
     num_coef = hyper_params['num_coef']
     corr_coef=np.eye(num_coef)*0.5
     for k1 in range(num_coef-1):
         for k2 in range(k1+1,num_coef):
-            corr_coef[k1,k2] = hyper_params['corr_coef_samp'][k1][k2-1-k1]
+            corr_coef[k1,k2] = hyper_params['corr_coef_all_coef_pairs'][k1][k2-1-k1]
     corr_coef = corr_coef+np.transpose(corr_coef)
     corr_coef = corr_coef.astype('float64')
-    noise_var = hyper_params['noise_var_samp']
+    noise_var = hyper_params['noise_var_all_coef']
     learning_rate = hyper_params['learning_rate']
-    l2_reg = hyper_params['l2_reg_samp']
+    l2_reg = hyper_params['l2_reg_coef']
     use_minibatch = hyper_params['use_minibatch']
     minibatch_size = hyper_params['minibatch_size']
     use_dropout = hyper_params['use_dropout']
-    droprates_samp = hyper_params['droprates_samp']
+    droprates = hyper_params['droprates']
     #############
 
     ############# Initialize variables
@@ -75,7 +94,7 @@ def gp_dnn_training(training_data, epochs, model_output_path, hyper_params):
         x=tf.keras.layers.Activation('relu')(x)
 
         if use_dropout:
-            drop_rate=droprates_samp
+            drop_rate=droprates
         else:
             drop_rate=0.0
         x=tf.keras.layers.Dropout(rate=drop_rate)(x)
@@ -86,14 +105,11 @@ def gp_dnn_training(training_data, epochs, model_output_path, hyper_params):
 
     ############### Specify the optimizer, loss function and metrics
     optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate)
-    loss_fn=GP_marginal_neglikelihood_loss(noise_var=noise_var,corr_coef=corr_coef)
-    cokrigr2_metric=cokriging_R2(model,x_train=x_train,y_train_obs=y_train,noise_var=noise_var,
-                                     corr_coef=corr_coef,eval_var=eval_var,name='cokrig_R2')
-    cokrigrmse_metric=cokriging_RMSE(model,x_train=x_train,y_train_obs=y_train,noise_var=noise_var,
-                                     corr_coef=corr_coef,eval_var=eval_var,name='cokrig_RMSE')
-    cokrigLL_metric=cokriging_likelihood(model,x_train=x_train,y_train_obs=y_train,noise_var=noise_var,
-                                     corr_coef=corr_coef,eval_var=eval_var,name='cokrig_LL')
-    
+    loss_fn=GP_DNN_marginal_neglikelihood_loss(noise_var=noise_var,corr_coef=corr_coef)
+    cokrigrmse_metric=GP_DNN_RMSE(model,x_train=x_train,y_train_obs=y_train,noise_var=noise_var,
+                                     corr_coef=corr_coef,eval_var=eval_var,name='gp_dnn_RMSE')
+    cokrigLL_metric=GP_DNN_likelihood(model,x_train=x_train,y_train_obs=y_train,noise_var=noise_var,
+                                     corr_coef=corr_coef,eval_var=eval_var,name='gp_dnn_LL')
 
     ############## Prepare the training & validation dataset.
     train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
@@ -104,7 +120,7 @@ def gp_dnn_training(training_data, epochs, model_output_path, hyper_params):
     ####################
 
 
-    hyper_param_grid={ 'num_layers':num_layers,
+    param_grid={ 'num_layers':num_layers,
                   'num_nodes':num_nodes,
                     'num_outputs':num_outputs,
                     'use_dropout':str(use_dropout),
@@ -118,9 +134,9 @@ def gp_dnn_training(training_data, epochs, model_output_path, hyper_params):
                     'checkpoint_path':checkpoint_path,
                     'tf_keras_seed':int(random_seed)
                 }
-    # Store hyper-params in a params.json file
+    # Store hyper-params ad metrics in a params.json file
     with open(model_output_path+'/params.json', 'w') as f:
-        json.dump(hyper_param_grid, f,cls=NpEncoder,indent=2)
+        json.dump(param_grid, f,cls=NpEncoder,indent=2)
 
     history_metrics={
         'loss_fn_train':[],
@@ -184,14 +200,6 @@ def gp_dnn_training(training_data, epochs, model_output_path, hyper_params):
     
     model.load_weights(checkpoint_path)
 
-    _=cokrigr2_metric.update_state(tf.cast(y_train,dtype=tf.float64),tf.cast(model.predict(x_train),dtype=tf.float64))
-    train_r2=cokrigr2_metric.result().numpy()
-    _=cokrigr2_metric.update_state(tf.cast(y_val,dtype=tf.float64),model.predict(x_val))
-    val_r2=cokrigr2_metric.result().numpy()
-    _=cokrigr2_metric.update_state(tf.cast(y_test,dtype=tf.float64),model.predict(x_test))
-    test_r2=cokrigr2_metric.result().numpy()
-
-
     _=cokrigrmse_metric.update_state(tf.cast(y_train,dtype=tf.float64),tf.cast(model.predict(x_train),dtype=tf.float64))
     train_rmse=cokrigrmse_metric.result().numpy()
     _=cokrigrmse_metric.update_state(tf.cast(y_val,dtype=tf.float64),model.predict(x_val))
@@ -207,8 +215,8 @@ def gp_dnn_training(training_data, epochs, model_output_path, hyper_params):
     test_LL=cokrigLL_metric.result().numpy()
 
 
-    ## create param grid based on sampled hyper-params
-    hyper_param_grid={ 'num_layers':num_layers,
+    # Store hyper-params ad metrics in a params.json file
+    param_grid={ 'num_layers':num_layers,
               'num_nodes':num_nodes,
                 'num_outputs':num_outputs,
                 'use_dropout':str(use_dropout),
@@ -222,9 +230,6 @@ def gp_dnn_training(training_data, epochs, model_output_path, hyper_params):
                 'checkpoint_path':checkpoint_path,
                 'tf_keras_seed':int(random_seed),
                 'best_epoch':best_epoch,
-                'train_r2':train_r2,
-                'val_r2':val_r2,
-                'test_r2':test_r2,
                 'train_rmse':train_rmse,
                 'val_rmse':val_rmse,
                 'test_rmse':test_rmse,
@@ -232,9 +237,8 @@ def gp_dnn_training(training_data, epochs, model_output_path, hyper_params):
                 'val_LL':val_LL,
                 'test_LL':test_LL
             }
-    # Store hyper-params in a json file
-    with open(model_output_path+'/hyper_params.json', 'w') as f:
-        json.dump(hyper_param_grid, f,cls=NpEncoder,indent=2)
+    with open(model_output_path+'/params.json', 'w') as f:
+        json.dump(param_grid, f,cls=NpEncoder,indent=2)
     
     with open(model_output_path+'/history.pickle', 'wb') as f:
         pickle.dump(history_metrics, f, protocol=pickle.HIGHEST_PROTOCOL)
