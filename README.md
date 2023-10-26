@@ -1,6 +1,6 @@
 # GP-DNN
 Hierarchical Gaussian process and neural network regression.
-Python code for training multivariate GP-DNNs using `tensorflow` and `tensorflow-probability` (see *requirements.txt* file). Refer to paper by Pradhan et al. (2023) for description of methodology and application.
+Python code for training multivariate GP-DNNs using `tensorflow` and `tensorflow-probability` (see *requirements.txt* file). Refer to paper by Pradhan et al. (2023) referenced below for description of methodology and application.
 
 The package contains the following:
 - *gp_dnn_hyper_tuning.py*: Python file to perform hyper-parameter tuning of GP-DNN models. User needs to specify the following inside the file:
