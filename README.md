@@ -27,3 +27,6 @@ The package contains the following:
   - `cokriging_covariance`: Function for constructing covariance matrix using Matérn kernels
 
 Users may choose the best model from hyper-parameter tuning based on saved metrics and perform subsequent analyses
+
+## Reference:
+- Pradhan, A., Adams, K. H., Chandrasekaran, V., Reager, J. T., Liu, Z., Stuart, A. M., Turmon, M. J., (2023), Modeling groundwater levels in California’s Central Valley by hierarchical Gaussian process and neural network regression, arXiv:2310:14555v1 [physics.geo-ph] [[arXiv]](https://arxiv.org/abs/2310.14555#)
